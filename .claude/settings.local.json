@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc *)",
+      "Bash(npm install *)",
+      "Bash(npx typescript *)",
+      "Bash(tsc --noEmit --skipLibCheck)",
+      "Bash(tsc --noEmit)"
+    ]
+  }
+}
