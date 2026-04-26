@@ -20,16 +20,15 @@ export function LeadCard({ lead, onAction }: LeadCardProps) {
     <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
       <div className="flex items-start justify-between mb-3">
         <div>
-          <h4 className="font-medium text-zinc-100">{lead.name}</h4>
-          <p className="text-sm text-zinc-500">{lead.phone}</p>
-          <p className="text-xs text-zinc-600 mt-1">{lead.city}</p>
+          <h4 className="font-medium text-zinc-100">{lead.nombre}</h4>
+          <p className="text-sm text-zinc-500">{lead.telefono}</p>
+          <p className="text-xs text-zinc-600 mt-1">{lead.ciudad}</p>
         </div>
-        <StatusBadge status={lead.status} />
+        <StatusBadge status={lead.outreach_status} />
       </div>
 
       <div className="text-xs text-zinc-500 mb-3">
-        Creado: {new Date(lead.created_at).toLocaleDateString('es-AR')}
-        {lead.last_contact && <span> · Última acción: {new Date(lead.last_contact).toLocaleDateString('es-AR')}</span>}
+        Creado: {new Date(lead.scraped_at).toLocaleDateString('es-AR')}
       </div>
 
       <div className="flex gap-2 flex-wrap">

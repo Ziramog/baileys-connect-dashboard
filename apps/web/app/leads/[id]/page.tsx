@@ -55,19 +55,19 @@ export default function LeadDetailPage() {
         <div className="grid grid-cols-2 gap-4 mb-4">
           <div>
             <span className="text-xs text-zinc-500 uppercase">Teléfono</span>
-            <p className="font-medium">{lead.phone}</p>
+            <p className="font-medium">{lead.telefono}</p>
           </div>
           <div>
             <span className="text-xs text-zinc-500 uppercase">Ciudad</span>
-            <p className="font-medium">{lead.city}</p>
+            <p className="font-medium">{lead.ciudad}</p>
           </div>
           <div>
             <span className="text-xs text-zinc-500 uppercase">Estado</span>
-            <div className="mt-1"><StatusBadge status={lead.status} /></div>
+            <div className="mt-1"><StatusBadge status={lead.outreach_status} /></div>
           </div>
           <div>
             <span className="text-xs text-zinc-500 uppercase">Creado</span>
-            <p className="font-medium">{new Date(lead.created_at).toLocaleDateString('es-AR')}</p>
+            <p className="font-medium">{new Date(lead.scraped_at).toLocaleDateString('es-AR')}</p>
           </div>
         </div>
 
