@@ -5,24 +5,25 @@ import type { RawLead } from '../../../../packages/shared/types'
 
 export const leadsRouter = Router()
 
-leadsRouter.get('/', (req: Request, res: Response) => {
+leadsRouter.get('/', async (req: Request, res: Response) => {
   try {
     const filters = {
       status: req.query.status as string | undefined,
       city: req.query.city as string | undefined,
+      vertical: req.query.vertical as string | undefined,
       page: parseInt(req.query.page as string) || 1,
       limit: parseInt(req.query.limit as string) || 50
     }
-    const result = dbService.getLeads(filters)
+    const result = await dbService.getLeads(filters)
     res.json(result)
   } catch (err: any) {
     res.status(500).json({ error: err.message })
   }
 })
 
-leadsRouter.get('/:id', (req: Request, res: Response) => {
+leadsRouter.get('/:id', async (req: Request, res: Response) => {
   try {
-    const lead = dbService.getLeadById(req.params.id)
+    const lead = await dbService.getLeadById(req.params.id)
     if (!lead) return res.status(404).json({ error: 'Lead not found' })
     res.json(lead)
   } catch (err: any) {
@@ -33,10 +34,10 @@ leadsRouter.get('/:id', (req: Request, res: Response) => {
 leadsRouter.post('/:id/action', async (req: Request, res: Response) => {
   try {
     const { action } = req.body
-    const lead = dbService.getLeadById(req.params.id)
+    const lead = await dbService.getLeadById(req.params.id)
     if (!lead) return res.status(404).json({ error: 'Lead not found' })
 
-    const validActions = ['send_intro', 'send_followup', 'mark_hot', 'discard', 'reset']
+    const validActions = ['send_intro', 'send_followup', 'mark_hot', 'discard', 'reset', 'enrich']
     if (!validActions.includes(action)) {
       return res.status(400).json({ error: 'Invalid action' })
     }
@@ -47,33 +48,26 @@ leadsRouter.post('/:id/action', async (req: Request, res: Response) => {
       const settings = dbService.getSettings()
       const templateKey = action === 'send_intro' ? 'intro' : 'followup_1'
       const text = settings.message_templates[templateKey as keyof typeof settings.message_templates]
-        .replace('{name}', lead.name)
-        .replace('{city}', lead.city)
+        .replace('{name}', lead.nombre)
+        .replace('{city}', lead.ciudad)
 
-      await baileysService.sendMessage(lead.phone, text)
+      await baileysService.sendMessage(lead.telefono, text)
       messageSent = text
     }
 
-    switch (action) {
-      case 'send_intro':
-        dbService.updateLeadStatus(req.params.id, 'contacted')
-        break
-      case 'send_followup':
-        dbService.updateLeadStatus(req.params.id, 'followup_1')
-        break
-      case 'mark_hot':
-        dbService.updateLeadStatus(req.params.id, 'hot')
-        break
-      case 'discard':
-        dbService.updateLeadStatus(req.params.id, 'discarded')
-        break
-      case 'reset':
-        dbService.updateLeadStatus(req.params.id, 'new')
-        break
+    if (action === 'send_intro') {
+      await dbService.updateLeadStatus(req.params.id, 'outreach_sent')
+    } else if (action === 'send_followup') {
+      await dbService.updateLeadStatus(req.params.id, 'outreach_sent')
+    } else if (action === 'mark_hot') {
+      await dbService.updateLeadStatus(req.params.id, 'qualified')
+    } else if (action === 'discard') {
+      await dbService.updateLeadStatus(req.params.id, 'rejected')
+    } else if (action === 'reset') {
+      await dbService.updateLeadStatus(req.params.id, 'pending')
     }
 
-    dbService.insertAction(req.params.id, action, messageSent)
-    const updated = dbService.getLeadById(req.params.id)
+    const updated = await dbService.getLeadById(req.params.id)
 
     res.json({ ok: true, lead: updated, message_sent: messageSent })
   } catch (err: any) {
@@ -81,13 +75,13 @@ leadsRouter.post('/:id/action', async (req: Request, res: Response) => {
   }
 })
 
-leadsRouter.post('/import', (req: Request, res: Response) => {
+leadsRouter.post('/import', async (req: Request, res: Response) => {
   try {
     const { leads } = req.body as { leads: RawLead[] }
     if (!Array.isArray(leads)) {
       return res.status(400).json({ error: 'leads must be an array' })
     }
-    const result = dbService.importLeads(leads)
+    const result = await dbService.importLeads(leads)
     res.json(result)
   } catch (err: any) {
     res.status(500).json({ error: err.message })

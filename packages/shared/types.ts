@@ -1,6 +1,5 @@
-export type QRStatus = 'idle' | 'waiting' | 'scanned' | 'connected' | 'disconnected'
-
-export type LeadStatus = 'new' | 'contacted' | 'followup_1' | 'followup_2' | 'hot' | 'discarded'
+export type OutreachStatus = 'pending' | 'enriched' | 'outreach_sent' | 'replied' | 'qualified' | 'rejected'
+export type LeadStatus = OutreachStatus
 
 export interface LeadAction {
   action: string
@@ -10,20 +9,42 @@ export interface LeadAction {
 
 export interface Lead {
   id: string
-  name: string
-  phone: string
-  city: string
-  status: LeadStatus
-  created_at: string
-  last_contact?: string
-  notes?: string
+  vertical: string
+  nombre: string
+  telefono: string
+  whatsapp?: string
+  email?: string
+  direccion?: string
+  zona?: string
+  ciudad: string
+  provincia: string
+  fuente: string
+  website?: string
+  google_maps_url?: string
+  productos_servicios?: string
+  instagram?: string
+  facebook?: string
+  scraped_at: string
+  enriched_at?: string
+  outreach_status: OutreachStatus
+  outreach_sent_at?: string
+  outreach_response?: string
   actions_history: LeadAction[]
 }
 
 export interface RawLead {
-  name: string
-  phone: string
-  city: string
+  vertical: string
+  nombre: string
+  telefono: string
+  whatsapp?: string
+  email?: string
+  direccion?: string
+  zona?: string
+  ciudad?: string
+  provincia?: string
+  fuente?: string
+  website?: string
+  google_maps_url?: string
 }
 
 export interface DaemonStatus {

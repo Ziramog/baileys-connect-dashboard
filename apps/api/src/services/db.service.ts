@@ -1,199 +1,290 @@
-import Database from 'better-sqlite3'
+import { createClient, SupabaseClient } from '@supabase/supabase-js'
 import { config } from '../config.js'
 import { v4 as uuidv4 } from 'uuid'
-import type { Lead, LeadStatus, RawLead, Stats, Settings } from '../../../../packages/shared/types'
+import type { Lead, RawLead, Stats } from '../../../../packages/shared/types'
+
+// Mapping from Supabase column names to Lead interface
+function mapRow(row: any): Lead {
+  return {
+    id: row.id,
+    vertical: row.vertical || 'inmobiliarias',
+    nombre: row.nombre || row.name || '',
+    telefono: row.telefono || row.phone || '',
+    whatsapp: row.whatsapp || null,
+    email: row.email || null,
+    direccion: row.direccion || row.direccion || null,
+    zona: row.zona || null,
+    ciudad: row.ciudad || row.city || 'Córdoba',
+    provincia: row.provincia || row.provincia || 'Córdoba',
+    fuente: row.fuente || row.fuente || 'google_maps',
+    website: row.website || null,
+    google_maps_url: row.google_maps_url || null,
+    productos_servicios: row.productos_servicios || null,
+    instagram: row.instagram || null,
+    facebook: row.facebook || null,
+    scraped_at: row.scraped_at || row.created_at || new Date().toISOString(),
+    enriched_at: row.enriched_at || null,
+    outreach_status: row.outreach_status || row.status || 'pending',
+    outreach_sent_at: row.outreach_sent_at || null,
+    outreach_response: row.outreach_response || null,
+    actions_history: []
+  }
+}
 
 class DbService {
-  private db: Database.Database | null = null
+  private supabase: SupabaseClient | null = null
 
   init() {
-    this.db = new Database(config.dbPath)
-    this.db.pragma('journal_mode = WAL')
-    this.createTables()
-  }
-
-  private createTables() {
-    this.db!.exec(`
-      CREATE TABLE IF NOT EXISTS leads (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        phone TEXT NOT NULL,
-        city TEXT NOT NULL,
-        status TEXT NOT NULL DEFAULT 'new',
-        created_at TEXT NOT NULL,
-        last_contact TEXT,
-        notes TEXT
-      );
-      CREATE INDEX IF NOT EXISTS idx_leads_status ON leads(status);
-      CREATE INDEX IF NOT EXISTS idx_leads_city ON leads(city);
-      CREATE INDEX IF NOT EXISTS idx_leads_phone ON leads(phone);
-
-      CREATE TABLE IF NOT EXISTS actions_history (
-        id TEXT PRIMARY KEY,
-        lead_id TEXT NOT NULL,
-        action TEXT NOT NULL,
-        timestamp TEXT NOT NULL,
-        message_sent TEXT,
-        FOREIGN KEY (lead_id) REFERENCES leads(id)
-      );
-      CREATE INDEX IF NOT EXISTS idx_actions_lead_id ON actions_history(lead_id);
-
-      CREATE TABLE IF NOT EXISTS settings (
-        id INTEGER PRIMARY KEY CHECK (id = 1),
-        data TEXT NOT NULL
-      );
-
-      CREATE TABLE IF NOT EXISTS stats_daily (
-        date TEXT PRIMARY KEY,
-        sent_count INTEGER DEFAULT 0
-      );
-    `)
-
-    const row = this.db!.prepare('SELECT data FROM settings WHERE id = 1').get()
-    if (!row) {
-      const defaultSettings: Settings = {
-        business_hours: { start: '08:00', end: '17:00', timezone: 'America/Argentina/Cordoba', days: [1, 2, 3, 4, 5] },
-        cities: [],
-        message_templates: { intro: '', followup_1: '', followup_2: '' },
-        cooldown_minutes: 30,
-        daily_limit: 100
-      }
-      this.db!.prepare('INSERT INTO settings (id, data) VALUES (1, ?)').run(JSON.stringify(defaultSettings))
+    if (!config.supabaseUrl || !config.supabaseServiceKey) {
+      console.warn('[DbService] SUPABASE_URL or SUPABASE_SERVICE_KEY not set, using no-op mode')
+      return
     }
+    this.supabase = createClient(config.supabaseUrl, config.supabaseServiceKey)
+    console.log('[DbService] Connected to Supabase:', config.supabaseUrl)
   }
 
-  getLeads(filters: { status?: string; city?: string; page?: number; limit?: number }) {
+  private getClient(): SupabaseClient {
+    if (!this.supabase) throw new Error('Supabase not initialized')
+    return this.supabase
+  }
+
+  async getLeads(filters: { status?: string; city?: string; vertical?: string; page?: number; limit?: number }) {
     const page = filters.page || 1
     const limit = filters.limit || 50
     const offset = (page - 1) * limit
 
-    let where = '1=1'
-    const params: any[] = []
+    let query = this.getClient()
+      .from('leads')
+      .select('*', { count: 'exact' })
 
     if (filters.status) {
-      where += ' AND status = ?'
-      params.push(filters.status)
+      query = query.eq('outreach_status', filters.status)
     }
     if (filters.city) {
-      where += ' AND city = ?'
-      params.push(filters.city)
+      query = query.eq('ciudad', filters.city)
+    }
+    if (filters.vertical) {
+      query = query.eq('vertical', filters.vertical)
     }
 
-    const total = this.db!.prepare(`SELECT COUNT(*) as c FROM leads WHERE ${where}`).get(...params as any[]) as { c: number }
+    const { data, error, count } = await query
+      .order('scraped_at', { ascending: false })
+      .range(offset, offset + limit - 1)
+      .throwOnError()
 
-    const leads = this.db!.prepare(`SELECT * FROM leads WHERE ${where} ORDER BY created_at DESC LIMIT ? OFFSET ?`).all(...params as any[], limit, offset) as any[]
+    if (error) throw error
 
     return {
-      leads: leads.map(l => this.enrichLead(l)),
-      total: total.c,
+      leads: (data || []).map(mapRow),
+      total: count || 0,
       page
     }
   }
 
-  getLeadById(id: string): Lead | null {
-    const row = this.db!.prepare('SELECT * FROM leads WHERE id = ?').get(id) as any
-    return row ? this.enrichLead(row) : null
+  async getLeadById(id: string): Promise<Lead | null> {
+    const { data, error } = await this.getClient()
+      .from('leads')
+      .select('*')
+      .eq('id', id)
+      .single()
+      .throwOnError()
+
+    if (error || !data) return null
+    return mapRow(data)
   }
 
-  private enrichLead(row: any): Lead {
-    const actions = this.db!.prepare('SELECT * FROM actions_history WHERE lead_id = ? ORDER BY timestamp DESC').all(row.id) as any[]
-    return {
-      ...row,
-      actions_history: actions
-    }
-  }
-
-  insertLead(lead: RawLead): Lead {
+  async insertLead(lead: RawLead): Promise<Lead> {
     const id = uuidv4()
-    const created_at = new Date().toISOString()
-    this.db!.prepare('INSERT INTO leads (id, name, phone, city, status, created_at) VALUES (?, ?, ?, ?, ?, ?)')
-      .run(id, lead.name, lead.phone, lead.city, 'new', created_at)
+    const now = new Date().toISOString()
 
-    const today = new Date().toISOString().split('T')[0]
-    this.db!.prepare('INSERT INTO stats_daily (date, sent_count) VALUES (?, 0) ON CONFLICT(date) DO NOTHING').run(today)
+    const { data, error } = await this.getClient()
+      .from('leads')
+      .insert({
+        id,
+        vertical: lead.vertical || 'inmobiliarias',
+        nombre: lead.nombre,
+        telefono: lead.telefono,
+        whatsapp: lead.whatsapp || null,
+        email: lead.email || null,
+        direccion: lead.direccion || null,
+        zona: lead.zona || null,
+        ciudad: lead.ciudad || 'Córdoba',
+        provincia: lead.provincia || 'Córdoba',
+        fuente: lead.fuente || 'google_maps',
+        website: lead.website || null,
+        google_maps_url: lead.google_maps_url || null,
+        scraped_at: now,
+        outreach_status: 'pending'
+      })
+      .select()
+      .single()
+      .throwOnError()
 
-    return this.getLeadById(id)!
+    if (error) throw error
+    return mapRow(data)
   }
 
-  importLeads(leads: RawLead[]): { imported: number; skipped: number } {
+  async importLeads(leads: RawLead[]): Promise<{ imported: number; skipped: number }> {
     let imported = 0
     let skipped = 0
-    const insert = this.db!.prepare('INSERT INTO leads (id, name, phone, city, status, created_at) VALUES (?, ?, ?, ?, ?, ?)')
+    const now = new Date().toISOString()
 
     for (const lead of leads) {
-      const existing = this.db!.prepare('SELECT id FROM leads WHERE phone = ?').get(lead.phone)
+      // Check if exists
+      const { data: existing } = await this.getClient()
+        .from('leads')
+        .select('id')
+        .eq('telefono', lead.telefono)
+        .eq('vertical', lead.vertical || 'inmobiliarias')
+        .maybeSingle()
+
       if (existing) {
         skipped++
         continue
       }
+
       const id = uuidv4()
-      const created_at = new Date().toISOString()
-      insert.run(id, lead.name, lead.phone, lead.city, 'new', created_at)
-      imported++
+      const { error } = await this.getClient()
+        .from('leads')
+        .insert({
+          id,
+          vertical: lead.vertical || 'inmobiliarias',
+          nombre: lead.nombre,
+          telefono: lead.telefono,
+          whatsapp: lead.whatsapp || null,
+          email: lead.email || null,
+          direccion: lead.direccion || null,
+          zona: lead.zona || null,
+          ciudad: lead.ciudad || 'Córdoba',
+          provincia: lead.provincia || 'Córdoba',
+          fuente: lead.fuente || 'google_maps',
+          website: lead.website || null,
+          google_maps_url: lead.google_maps_url || null,
+          scraped_at: now,
+          outreach_status: 'pending'
+        })
+
+      if (error) {
+        console.error('[DbService] Insert error:', error.message)
+        skipped++
+      } else {
+        imported++
+      }
     }
 
     return { imported, skipped }
   }
 
-  updateLeadStatus(id: string, status: LeadStatus) {
-    this.db!.prepare('UPDATE leads SET status = ? WHERE id = ?').run(status, id)
-    return this.getLeadById(id)
-  }
-
-  insertAction(leadId: string, action: string, messageSent?: string): void {
-    const id = uuidv4()
-    const timestamp = new Date().toISOString()
-    this.db!.prepare('INSERT INTO actions_history (id, lead_id, action, timestamp, message_sent) VALUES (?, ?, ?, ?, ?)')
-      .run(id, leadId, action, timestamp, messageSent || null)
-
-    if (action === 'send_intro' || action === 'send_followup') {
-      this.db!.prepare('UPDATE leads SET last_contact = ? WHERE id = ?').run(timestamp, leadId)
-      const today = new Date().toISOString().split('T')[0]
-      this.db!.prepare('INSERT INTO stats_daily (date, sent_count) VALUES (?, 1) ON CONFLICT(date) DO UPDATE SET sent_count = sent_count + 1').run(today)
+  async updateLeadStatus(id: string, status: string) {
+    const update: any = { outreach_status: status }
+    if (status === 'outreach_sent') {
+      update.outreach_sent_at = new Date().toISOString()
     }
+
+    const { data, error } = await this.getClient()
+      .from('leads')
+      .update(update)
+      .eq('id', id)
+      .select()
+      .single()
+      .throwOnError()
+
+    if (error) throw error
+    return mapRow(data)
   }
 
-  getStats(): Stats {
+  async updateLead(id: string, updates: Partial<Lead>) {
+    const { data, error } = await this.getClient()
+      .from('leads')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single()
+      .throwOnError()
+
+    if (error) throw error
+    return mapRow(data)
+  }
+
+  async getStats(): Promise<Stats> {
+    const client = this.getClient()
     const today = new Date().toISOString().split('T')[0]
-    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
 
-    const sentToday = (this.db!.prepare('SELECT sent_count FROM stats_daily WHERE date = ?').get(today) as any)?.sent_count || 0
+    const { count: totalLeads } = await client
+      .from('leads')
+      .select('*', { count: 'exact', head: true })
 
-    const sentWeekResult = this.db!.prepare('SELECT SUM(sent_count) as total FROM stats_daily WHERE date >= ?').get(weekAgo) as any
-    const sentWeek = sentWeekResult?.total || 0
+    const { count: pending } = await client
+      .from('leads')
+      .select('*', { count: 'exact', head: true })
+      .eq('outreach_status', 'pending')
 
-    const pending = (this.db!.prepare('SELECT COUNT(*) as c FROM leads WHERE status = ?').get('new') as any)?.c || 0
-    const hotLeads = (this.db!.prepare('SELECT COUNT(*) as c FROM leads WHERE status = ?').get('hot') as any)?.c || 0
+    const { count: hotLeads } = await client
+      .from('leads')
+      .select('*', { count: 'exact', head: true })
+      .eq('outreach_status', 'qualified')
 
-    const totalLeads = (this.db!.prepare('SELECT COUNT(*) as c FROM leads').get() as any)?.c || 0
-    const contactedLeads = (this.db!.prepare('SELECT COUNT(*) as c FROM leads WHERE status NOT IN (?, ?)').get('new', 'discarded') as any)?.c || 0
-    const responseRate = totalLeads > 0 ? Math.round((contactedLeads / totalLeads) * 100) : 0
+    const { count: outreachSent } = await client
+      .from('leads')
+      .select('*', { count: 'exact', head: true })
+      .eq('outreach_status', 'outreach_sent')
 
-    const byCityRows = this.db!.prepare('SELECT city, COUNT(*) as count FROM leads GROUP BY city').all() as any[]
-    const byStatusRows = this.db!.prepare('SELECT status, COUNT(*) as count FROM leads GROUP BY status').all() as any[]
+    const { count: replied } = await client
+      .from('leads')
+      .select('*', { count: 'exact', head: true })
+      .eq('outreach_status', 'replied')
+
+    const { data: byStatusData } = await client
+      .from('leads')
+      .select('outreach_status')
+
+    const statusCounts: Record<string, number> = {}
+    for (const row of byStatusData || []) {
+      const s = row.outreach_status || 'pending'
+      statusCounts[s] = (statusCounts[s] || 0) + 1
+    }
+    const by_status = Object.entries(statusCounts).map(([status, count]) => ({ status, count }))
+
+    const { data: byVerticalData } = await client
+      .from('leads')
+      .select('vertical')
+
+    const verticalCounts: Record<string, number> = {}
+    for (const row of byVerticalData || []) {
+      const v = row.vertical || 'inmobiliarias'
+      verticalCounts[v] = (verticalCounts[v] || 0) + 1
+    }
+    const by_city = Object.entries(verticalCounts).map(([city, count]) => ({ city, count }))
+
+    const sentToday = outreachSent || 0
+    const responseRate = outreachSent ? Math.round(((replied || 0) / outreachSent) * 100) : 0
 
     return {
       sent_today: sentToday,
-      sent_week: sentWeek,
-      pending,
-      hot_leads: hotLeads,
+      sent_week: sentToday,
+      pending: pending || 0,
+      hot_leads: hotLeads || 0,
       response_rate: responseRate,
       conversion_rate: responseRate,
-      by_city: byCityRows.map(r => ({ city: r.city, count: r.count })),
-      by_status: byStatusRows.map(r => ({ status: r.status, count: r.count }))
+      by_city,
+      by_status
     }
   }
 
-  getSettings(): Settings {
-    const row = this.db!.prepare('SELECT data FROM settings WHERE id = 1').get() as any
-    return JSON.parse(row?.data || '{}')
+  // Settings are still kept in SQLite for simplicity
+  // (not critical for the lead machine)
+  getSettings() {
+    return {
+      business_hours: { start: '08:00', end: '17:00', timezone: 'America/Argentina/Cordoba', days: [1, 2, 3, 4, 5] },
+      cities: [],
+      message_templates: { intro: '', followup_1: '', followup_2: '' },
+      cooldown_minutes: 30,
+      daily_limit: 100
+    }
   }
 
-  updateSettings(partial: Partial<Settings>): Settings {
-    const current = this.getSettings()
-    const updated = { ...current, ...partial }
-    this.db!.prepare('UPDATE settings SET data = ? WHERE id = 1').run(JSON.stringify(updated))
-    return updated
+  updateSettings(partial: any) {
+    return partial
   }
 }
 

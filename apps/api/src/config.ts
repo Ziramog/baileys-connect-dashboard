@@ -5,5 +5,7 @@ export const config = {
   dbPath: process.env.DB_PATH || '/data/wolfim.db',
   daemonScript: process.env.DAEMON_SCRIPT || '/home/hermes/workspace/autonomous-daemon/daemon.js',
   allowedOrigin: process.env.ALLOWED_ORIGIN || '*',
-  nodeEnv: process.env.NODE_ENV || 'development'
+  nodeEnv: process.env.NODE_ENV || 'development',
+  supabaseUrl: process.env.SUPABASE_URL || '',
+  supabaseServiceKey: process.env.SUPABASE_SERVICE_KEY || ''
 }
