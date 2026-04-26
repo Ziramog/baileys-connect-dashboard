@@ -1,3 +1,4 @@
+export type QRStatus = 'idle' | 'waiting' | 'scanned' | 'connected' | 'disconnected'
 export type OutreachStatus = 'pending' | 'enriched' | 'outreach_sent' | 'replied' | 'qualified' | 'rejected'
 export type LeadStatus = OutreachStatus
 
