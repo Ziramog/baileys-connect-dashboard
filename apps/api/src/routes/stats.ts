@@ -3,9 +3,9 @@ import { dbService } from '../services/db.service.js'
 
 export const statsRouter = Router()
 
-statsRouter.get('/', (_req: Request, res: Response) => {
+statsRouter.get('/', async (_req: Request, res: Response) => {
   try {
-    const stats = dbService.getStats()
+    const stats = await (dbService as any).getStats()
     res.json(stats)
   } catch (err: any) {
     res.status(500).json({ error: err.message })
