@@ -49,7 +49,7 @@ export default function LeadDetailPage() {
 
   return (
     <div className="max-w-3xl">
-      <h1 className="text-2xl font-bold mb-6">{lead.name}</h1>
+      <h1 className="text-2xl font-bold mb-6">{lead.nombre}</h1>
 
       <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 mb-6">
         <div className="grid grid-cols-2 gap-4 mb-4">
