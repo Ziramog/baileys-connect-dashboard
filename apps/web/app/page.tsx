@@ -1,28 +1,12 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { QRDisplay } from '@/components/QRDisplay'
 import { DaemonControl } from '@/components/DaemonControl'
 import { StatsCard } from '@/components/StatsCard'
-import type { QRStatus, Stats } from '@/lib/types'
-import { useRouter } from 'next/navigation'
+import type { Stats } from '@/lib/types'
 
 export default function DashboardPage() {
-  const [qrStatus, setQrStatus] = useState<QRStatus>('idle')
   const [stats, setStats] = useState<Stats | null>(null)
-  const router = useRouter()
-
-  useEffect(() => {
-    const checkStatus = async () => {
-      try {
-        const data = await fetch('/api/proxy/qr/status').then(r => r.json())
-        setQrStatus(data.status)
-      } catch {}
-    }
-    checkStatus()
-    const interval = setInterval(checkStatus, 5000)
-    return () => clearInterval(interval)
-  }, [])
 
   useEffect(() => {
     const loadStats = async () => {
@@ -41,16 +25,6 @@ export default function DashboardPage() {
       <h1 className="text-2xl font-bold mb-6">Dashboard</h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
-          <h2 className="font-medium mb-4">WhatsApp</h2>
-          <QRDisplay
-            onConnected={() => {
-              setQrStatus('connected')
-              setTimeout(() => router.push('/'), 2000)
-            }}
-          />
-        </div>
-
         <DaemonControl />
       </div>
 
