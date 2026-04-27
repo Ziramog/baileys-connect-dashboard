@@ -1,0 +1,15 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.config = void 0;
+exports.config = {
+    port: parseInt(process.env.PORT || '3000', 10),
+    apiSecret: process.env.API_SECRET || '',
+    authSessionPath: process.env.AUTH_SESSION_PATH || '/data/auth-session',
+    dbPath: process.env.DB_PATH || '/data/wolfim.db',
+    daemonScript: process.env.DAEMON_SCRIPT || '/home/hermes/workspace/autonomous-daemon/daemon.js',
+    allowedOrigin: process.env.ALLOWED_ORIGIN || '*',
+    nodeEnv: process.env.NODE_ENV || 'development',
+    supabaseUrl: process.env.SUPABASE_URL || '',
+    supabaseServiceKey: process.env.SUPABASE_SERVICE_KEY || ''
+};
+//# sourceMappingURL=config.js.map

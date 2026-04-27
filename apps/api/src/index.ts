@@ -8,6 +8,7 @@ import { daemonRouter } from './routes/daemon.js'
 import { leadsRouter } from './routes/leads.js'
 import { statsRouter } from './routes/stats.js'
 import { settingsRouter } from './routes/settings.js'
+import { webhookRouter } from './routes/webhook.js'
 import { baileysService } from './services/baileys.service.js'
 import { dbService } from './services/db.service.js'
 
@@ -28,6 +29,7 @@ app.use('/api/daemon', authMiddleware, daemonRouter)
 app.use('/api/leads', authMiddleware, leadsRouter)
 app.use('/api/stats', authMiddleware, statsRouter)
 app.use('/api/settings', authMiddleware, settingsRouter)
+app.use('/api/webhook', webhookRouter)
 
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error('[Error]', err.message)

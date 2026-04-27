@@ -51,7 +51,8 @@ leadsRouter.post('/:id/action', async (req: Request, res: Response) => {
         .replace('{name}', lead.nombre)
         .replace('{city}', lead.ciudad)
 
-      await baileysService.sendMessage(lead.telefono, text)
+      const phoneNormalized = String(lead.telefono).replace(/\D/g, '')
+      await baileysService.sendMessage(phoneNormalized, text)
       messageSent = text
     }
 

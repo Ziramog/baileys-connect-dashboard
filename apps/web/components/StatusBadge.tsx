@@ -10,12 +10,16 @@ const statusConfig: Record<string, { label: string; color: string }> = {
   scanned: { label: 'Escaneado', color: 'bg-blue-500/20 text-blue-400' },
   connected: { label: 'Conectado', color: 'bg-green-500/20 text-green-400' },
   disconnected: { label: 'Desconectado', color: 'bg-red-500/20 text-red-400' },
+  // Outreach statuses
+  pending: { label: 'Pendiente', color: 'bg-blue-500/20 text-blue-400' },
+  enriched: { label: 'Enriquecido', color: 'bg-purple-500/20 text-purple-400' },
+  outreach_sent: { label: 'Intro enviada', color: 'bg-green-500/20 text-green-400' },
+  replied: { label: 'Respondió', color: 'bg-green-600/20 text-green-500' },
+  qualified: { label: 'Calificado', color: 'bg-red-500/20 text-red-400' },
+  rejected: { label: 'Rechazado', color: 'bg-zinc-700 text-zinc-500' },
   new: { label: 'Nuevo', color: 'bg-blue-500/20 text-blue-400' },
-  contacted: { label: 'Contactado', color: 'bg-yellow-500/20 text-yellow-400' },
-  followup_1: { label: 'Seguimiento 1', color: 'bg-orange-500/20 text-orange-400' },
-  followup_2: { label: 'Seguimiento 2', color: 'bg-orange-600/20 text-orange-500' },
   hot: { label: 'Hot', color: 'bg-red-500/20 text-red-400' },
-  discarded: { label: 'Descartado', color: 'bg-zinc-700 text-zinc-500' }
+  discarded: { label: 'Descartado', color: 'bg-zinc-700 text-zinc-500' },
 }
 
 export function StatusBadge({ status }: StatusBadgeProps) {
