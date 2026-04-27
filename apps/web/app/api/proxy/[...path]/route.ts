@@ -10,6 +10,22 @@ export async function GET(req: NextRequest, { params }: { params: { path: string
     const res = await fetch(`${API_URL}/api/${path}${query}`, {
       headers: { 'x-api-secret': API_SECRET }
     })
+
+    const contentType = res.headers.get('content-type') || ''
+
+    // Binary responses (PNG images) — stream directly
+    if (contentType.startsWith('image/') || contentType === 'application/octet-stream') {
+      const buffer = await res.arrayBuffer()
+      return new NextResponse(buffer, {
+        status: res.status,
+        headers: {
+          'Content-Type': contentType,
+          'Cache-Control': 'no-store, no-cache',
+        }
+      })
+    }
+
+    // JSON responses
     const data = await res.json()
     return NextResponse.json(data, { status: res.status })
   } catch (err: any) {
