@@ -35,3 +35,14 @@ qrRouter.post('/disconnect', async (_req: Request, res: Response) => {
     res.status(500).json({ error: err.message })
   }
 })
+
+qrRouter.post('/regenerate', async (_req: Request, res: Response) => {
+  try {
+    const fs = require('fs')
+    const controlFile = '/home/hermes/data/baileys-connect/control.json'
+    fs.writeFileSync(controlFile, JSON.stringify({ action: 'reconnect', at: new Date().toISOString() }))
+    res.json({ ok: true, message: 'Reconnect signal sent to daemon' })
+  } catch (err: any) {
+    res.status(500).json({ error: err.message })
+  }
+})

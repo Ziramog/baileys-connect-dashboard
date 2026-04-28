@@ -59,6 +59,20 @@ export function QRDisplay({ onConnected }: QRDisplayProps) {
     }
   }
 
+  const regenerateQR = async () => {
+    setLoading(true)
+    setError('')
+    try {
+      const res = await fetch('/api/proxy/qr/regenerate', { method: 'POST' }).then(r => r.json())
+      if (res.error) throw new Error(res.error)
+      await ctx.refresh()
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const statusMessages: Record<QRStatus, string> = {
     idle: 'Iniciá la conexión para generar el código QR',
     waiting: 'Escaneá desde WhatsApp → Dispositivos vinculados',
@@ -77,13 +91,22 @@ export function QRDisplay({ onConnected }: QRDisplayProps) {
             </svg>
           </div>
           <p className="text-green-400 font-medium text-center">{statusMessages.connected}</p>
-          <button
-            onClick={disconnect}
-            disabled={loading}
-            className="px-4 py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-colors disabled:opacity-50"
-          >
-            Desconectar
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={disconnect}
+              disabled={loading}
+              className="px-4 py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-colors disabled:opacity-50"
+            >
+              Desconectar
+            </button>
+            <button
+              onClick={regenerateQR}
+              disabled={loading}
+              className="px-4 py-2 bg-zinc-800 text-zinc-300 rounded-lg hover:bg-zinc-700 transition-colors disabled:opacity-50"
+            >
+              Regenerar QR
+            </button>
+          </div>
         </div>
       ) : (
         <>
@@ -104,6 +127,13 @@ export function QRDisplay({ onConnected }: QRDisplayProps) {
                 <div className="w-4 h-4 border-2 border-green-400 border-t-transparent rounded-full animate-spin" />
                 <span className="text-zinc-400">{statusMessages.waiting}</span>
               </div>
+              <button
+                onClick={regenerateQR}
+                disabled={loading}
+                className="px-4 py-2 bg-zinc-800 text-zinc-400 rounded-lg hover:bg-zinc-700 transition-colors disabled:opacity-50 text-sm"
+              >
+                Generar nuevo QR
+              </button>
             </div>
           )}
 
