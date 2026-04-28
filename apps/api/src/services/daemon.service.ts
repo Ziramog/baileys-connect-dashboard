@@ -45,7 +45,7 @@ class DaemonService {
     return new Promise((resolve) => {
       pm2.list((err: Error | null, list: any[]) => {
         if (err || !list) return resolve(null)
-        const daemon = list.find((p: any) => p.name === 'wolfim-daemon')
+        const daemon = list.find((p: any) => p.name === 'outreach-daemon')
         resolve(daemon || null)
       })
     })
@@ -95,7 +95,7 @@ class DaemonService {
       pm2.start(
         {
           script: config.daemonScript,
-          name: 'wolfim-daemon',
+          name: 'outreach-daemon',
           instances: 1,
           autorestart: false
         },
@@ -109,7 +109,7 @@ class DaemonService {
 
   private stopProcess(): Promise<void> {
     return new Promise((resolve, reject) => {
-      pm2.stop('wolfim-daemon', (err: Error | null) => {
+      pm2.stop('outreach-daemon', (err: Error | null) => {
         if (err) reject(err)
         else resolve()
       })
@@ -118,7 +118,7 @@ class DaemonService {
 
   private restartProcess(): Promise<void> {
     return new Promise((resolve, reject) => {
-      pm2.restart('wolfim-daemon', (err: Error | null) => {
+      pm2.restart('outreach-daemon', (err: Error | null) => {
         if (err) reject(err)
         else resolve()
       })
@@ -131,7 +131,7 @@ class DaemonService {
       return new Promise((resolve) => {
         pm2.list((err: Error | null, list: any[]) => {
           if (err || !list) return resolve({ logs: [], timestamp: new Date().toISOString() })
-          const daemon = list.find((p: any) => p.name === 'wolfim-daemon')
+          const daemon = list.find((p: any) => p.name === 'outreach-daemon')
           if (!daemon) return resolve({ logs: [], timestamp: new Date().toISOString() })
 
           const out = (daemon.pm2_env as any)?.pm_out_logs?.toString() || ''

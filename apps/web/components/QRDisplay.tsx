@@ -2,45 +2,44 @@
 
 import { useEffect, useState } from 'react'
 import type { QRStatus } from '@/lib/types'
+import { useWhatsApp } from '@/contexts/WhatsAppContext'
 
 interface QRDisplayProps {
   onConnected?: () => void
 }
 
 export function QRDisplay({ onConnected }: QRDisplayProps) {
-  const [status, setStatus] = useState<QRStatus>('idle')
-  const [qrUrl, setQrUrl] = useState<string>('')
-  const [phone, setPhone] = useState<string>('')
+  const ctx = useWhatsApp()
+  const [status, setStatus] = useState<QRStatus>(ctx.status || 'idle')
+  const [phone, setPhone] = useState(ctx.phone || '')
+  const [qrUrl, setQrUrl] = useState('')
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string>('')
+  const [error, setError] = useState('')
 
+  // Sync with context
   useEffect(() => {
-    const poll = setInterval(async () => {
-      try {
-        const res = await fetch('/api/proxy/qr/status')
-        const data = await res.json()
-        setStatus(data.status)
-        setPhone(data.phone || '')
-        if (data.qr_available) {
-          setQrUrl(`/api/proxy/qr/image?t=${Date.now()}`)
-        } else {
-          setQrUrl('')
-        }
-        if (data.status === 'connected') {
-          clearInterval(poll)
-          onConnected?.()
-        }
-      } catch {}
-    }, 2000)
+    setStatus(ctx.status)
+    setPhone(ctx.phone)
+    if (ctx.qr_available && ctx.qrUrl) {
+      setQrUrl(ctx.qrUrl)
+    } else {
+      setQrUrl('')
+    }
+  }, [ctx])
 
-    return () => clearInterval(poll)
-  }, [onConnected])
+  // Watch for connected
+  useEffect(() => {
+    if (status === 'connected') {
+      onConnected?.()
+    }
+  }, [status, onConnected])
 
   const startConnection = async () => {
     setLoading(true)
     setError('')
     try {
       await fetch('/api/proxy/qr/start', { method: 'POST' })
+      await ctx.refresh()
     } catch (err: any) {
       setError(err.message)
     } finally {
@@ -52,9 +51,7 @@ export function QRDisplay({ onConnected }: QRDisplayProps) {
     setLoading(true)
     try {
       await fetch('/api/proxy/qr/disconnect', { method: 'POST' })
-      setStatus('idle')
-      setQrUrl('')
-      setPhone('')
+      await ctx.refresh()
     } catch (err: any) {
       setError(err.message)
     } finally {
@@ -63,10 +60,10 @@ export function QRDisplay({ onConnected }: QRDisplayProps) {
   }
 
   const statusMessages: Record<QRStatus, string> = {
-    idle: 'Inicia la conexión para generar el código QR',
+    idle: 'Iniciá la conexión para generar el código QR',
     waiting: 'Escaneá desde WhatsApp → Dispositivos vinculados',
     scanned: 'QR escaneado, esperando confirmación...',
-    connected: `Conectado como ${phone}`,
+    connected: phone ? `Conectado como ${phone}` : 'Conectado',
     disconnected: 'Sesión cerrada'
   }
 
@@ -79,7 +76,7 @@ export function QRDisplay({ onConnected }: QRDisplayProps) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
           </div>
-          <p className="text-green-400 font-medium">{statusMessages.connected}</p>
+          <p className="text-green-400 font-medium text-center">{statusMessages.connected}</p>
           <button
             onClick={disconnect}
             disabled={loading}
@@ -110,7 +107,7 @@ export function QRDisplay({ onConnected }: QRDisplayProps) {
             </div>
           )}
 
-          {(status === 'scanned' || status === 'waiting') && !qrUrl && (
+          {(status === 'scanned' || (status === 'waiting' && !qrUrl)) && (
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin" />
               <span className="text-yellow-400">Procesando...</span>
@@ -120,7 +117,8 @@ export function QRDisplay({ onConnected }: QRDisplayProps) {
       )}
 
       {error && <p className="text-red-400 text-sm">{error}</p>}
-      {status !== 'idle' && status !== 'connected' && status !== 'disconnected' && (
+
+      {status !== 'idle' && status !== 'connected' && status !== 'disconnected' && !error && (
         <p className="text-zinc-500 text-sm">{statusMessages[status]}</p>
       )}
     </div>
