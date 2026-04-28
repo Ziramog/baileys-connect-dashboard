@@ -87,7 +87,7 @@ export function QRDisplay({ onConnected }: QRDisplayProps) {
         </div>
       ) : (
         <>
-          {status === 'idle' && (
+          {(status === 'idle' || status === 'disconnected') && !qrUrl && (
             <button
               onClick={startConnection}
               disabled={loading}
@@ -118,8 +118,8 @@ export function QRDisplay({ onConnected }: QRDisplayProps) {
 
       {error && <p className="text-red-400 text-sm">{error}</p>}
 
-      {status !== 'idle' && status !== 'connected' && status !== 'disconnected' && !error && (
-        <p className="text-zinc-500 text-sm">{statusMessages[status]}</p>
+      {status === 'disconnected' && !error && (
+        <p className="text-zinc-500 text-sm">{statusMessages.disconnected}</p>
       )}
     </div>
   )
