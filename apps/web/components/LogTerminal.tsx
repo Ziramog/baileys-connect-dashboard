@@ -1,12 +1,14 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
+import { useWhatsApp } from '@/contexts/WhatsAppContext'
 
 export function LogTerminal({ maxLines = 50 }: { maxLines?: number }) {
   const [logs, setLogs] = useState<string[]>([])
   const [paused, setPaused] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const [autoScroll, setAutoScroll] = useState(true)
+  const wa = useWhatsApp()
 
   useEffect(() => {
     const fetchLogs = async () => {
@@ -46,7 +48,15 @@ export function LogTerminal({ maxLines = 50 }: { maxLines?: number }) {
   return (
     <div className="bg-black rounded-lg border border-zinc-800 font-mono text-xs overflow-hidden">
       <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-800 bg-zinc-900">
-        <span className="text-zinc-400">Daemon Logs</span>
+        <div className="flex items-center gap-3">
+          <span className="text-zinc-400">Daemon Logs</span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-zinc-600">WA:</span>
+            <span className={wa.status === 'connected' ? 'text-green-400' : 'text-red-400'}>
+              {wa.status === 'connected' ? '✓ Conectado' : '✗ Desconectado'}
+            </span>
+          </div>
+        </div>
         <button onClick={() => setPaused(p => !p)} className={buttonClass}>
           {paused ? 'Resume' : 'Pause'}
         </button>

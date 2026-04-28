@@ -3,10 +3,12 @@
 import { useEffect, useState } from 'react'
 import { DaemonControl } from '@/components/DaemonControl'
 import { StatsCard } from '@/components/StatsCard'
+import { useWhatsApp } from '@/contexts/WhatsAppContext'
 import type { Stats } from '@/lib/types'
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<Stats | null>(null)
+  const wa = useWhatsApp()
 
   useEffect(() => {
     const loadStats = async () => {
@@ -22,7 +24,24 @@ export default function DashboardPage() {
 
   return (
     <div className="max-w-6xl">
-      <h1 className="text-2xl font-bold mb-6">Dashboard</h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold">Dashboard</h1>
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-zinc-400">
+            WhatsApp
+          </span>
+          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm ${
+            wa.status === 'connected'
+              ? 'bg-green-500/20 text-green-400'
+              : 'bg-red-500/20 text-red-400'
+          }`}>
+            <div className={`w-2 h-2 rounded-full ${
+              wa.status === 'connected' ? 'bg-green-400' : 'bg-red-400'
+            }`} />
+            {wa.status === 'connected' ? (wa.phone || 'Conectado') : 'Desconectado'}
+          </div>
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <DaemonControl />

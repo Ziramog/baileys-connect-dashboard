@@ -41,10 +41,16 @@ export default function ConnectPage() {
             <StatusBadge status={wa.status} />
           </div>
 
-          {wa.phone && (
+          {wa.phone && wa.status === 'connected' && (
             <div className="mb-4 px-4 py-3 bg-green-500/10 border border-green-500/30 rounded-lg">
               <p className="text-green-400 font-medium">{wa.phone}</p>
               <p className="text-green-400/70 text-xs mt-1">WhatsApp conectado</p>
+            </div>
+          )}
+          {wa.phone && wa.status !== 'connected' && (
+            <div className="mb-4 px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg">
+              <p className="text-zinc-400 font-medium">{wa.phone}</p>
+              <p className="text-zinc-500 text-xs mt-1">Sesión anterior - escaneá QR para reconnectar</p>
             </div>
           )}
 
