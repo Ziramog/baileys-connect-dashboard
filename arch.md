@@ -1,5 +1,7 @@
 # Wolfim — Arquitectura y Guía de Implementación
+
 > WhatsApp Outreach Node · Baileys + Express + Next.js · VPS Contabo 194.163.161.99
+> Actualizado: 2026-05-01
 
 ---
 
@@ -7,462 +9,211 @@
 
 | Capa | Tecnología | Dónde corre |
 |---|---|---|
-| Frontend | Next.js 14 (App Router) | Vercel |
-| API Gateway | Express 4 | VPS :3000 |
-| WhatsApp | Baileys @whiskeysockets | VPS (pm2) |
-| Daemon Outreach | daemon.js | VPS (pm2) |
-| Storage | SQLite (better-sqlite3) | VPS /data/ |
-| Auth Dashboard | API_SECRET header | Vercel + VPS |
-| Reverse Proxy | Nginx | VPS :80/:443 |
+| Frontend | Next.js 14 (App Router) | Vercel (outreach-wolfim.vercel.app) |
+| API Gateway | Express 4 | VPS :3000 → api.wolfim.com |
+| WhatsApp | Baileys @whiskeysockets | VPS (pm2 outreach-daemon) |
+| Daemon Outreach | daemon.js | VPS (pm2 outreach-daemon) |
+| Lead Database | Supabase (PostgreSQL) | Cloud |
+| Session Storage | Baileys session files | VPS /home/hermes/data/baileys-connect/ |
+| Reverse Proxy | Nginx + SSL | VPS :443 |
 
-**IPs / Puertos definitivos:**
+**Repositorios:**
+- Dashboard/API: `https://github.com/Ziramog/outreach-connect-dashboard`
+- Daemon: `https://github.com/Ziramog/outreach-connect-daemon`
+
+**IPs / Puertos:**
 ```
 VPS:   194.163.161.99
-Nginx: :443  → proxy_pass :3000  (API Express)
-PM2:   wolfim-api    → :3000
-       wolfim-daemon → proceso interno (no HTTP propio)
-Data:  /data/auth-session/   ← Baileys auth
-       /data/wolfim.db       ← SQLite
-Ports: 4001, 4002, 4003, 5003 — NO TOCAR
+API:   :3000 (PM2: outreach-api)
+Daemon: outreach-daemon (PM2: outreach-daemon)
+Nginx: :443 → api.wolfim.com → :3000
+Ports: 4001, 4002, 4003, 5003 — Docker (no tocar)
+Data:  /home/hermes/data/baileys-connect/ ← session + status
 ```
 
 ---
 
-## 2. Estructura de Repositorios
+## 2. Anti-Ban Strategy (Implementado)
+
+### Límite Diario
+- **Máximo 20 mensajes por día** (Argentina time, reset 03:00 UTC)
+- Contador persiste en `state.json` → `daily_stats.sent_today`
+- Al alcanzar el límite: log `[Cap] DAILY LIMIT REACHED` y skip todo envío
+
+### Delay Variable
+- **15-45 segundos random** entre cada mensaje (antes era fijo 2.5s)
+- Función `getVariableDelay()` genera delay aleatorio
+- Log muestra delay real: `[Delay] 23.4s`
+
+### Ramp-Up (Post-Reconexión)
+Después de offline prolongado, el daemon limita automáticamente:
+
+| Tiempo offline | Límite diario | Estado |
+|---|---|---|
+| Fresh start (sin historial) | 5 msgs/día | `[RampUp] Fresh start — 5 msgs/day` |
+| >72 horas offline | 5 msgs/día | `[RampUp] Offline>72h — 5/day` |
+| 24-72 horas offline | 10 msgs/día | `[RampUp] Offline>24h — 10/day` |
+| <24 horas offline | 20 msgs/día (full) | `[RampUp] Normal — 20/day` |
+
+Tracking: `state.json` → `last_message_at` para calcular horas offline.
+
+### Horario Comercial
+- **8 AM - 5 PM Argentina** (UTC-3)
+- Sábados y domingos: no se envía
+- Fuera de horario: log `[Business Hours] Outside schedule — skipping outreach`
+
+### Mensajes Más Naturaless
+-Máx 3-4 líneas
+- Sin asteriscos ni mayúsculas excesivas
+- Emojis mínimos
+- Greeting variado (¡Hola! / Buenas tardes / Hola / Buenas)
+- Templates en `outreach.js`:
+
+```javascript
+intro_es: "Buenas tardes, soy Juan. Trabajo creando web para inmobiliarias que attract clientes sin depender solo de Instagram. ¿Te interesa saber más?"
+followup_1: "¡Hola! Te escribí hace unos días sobre crear una web para tu inmobiliaria. ¿Tuviste tiempo de verlo?"
+followup_2: "Hola de nuevo. Solo quería confirmar si les interesa recibir más info sobre generar consultas desde su propia web."
+```
+
+---
+
+## 3. Estructura de Repositorios
 
 ```
-wolfim-dashboard/          ← monorepo local: F:/Baileysconnect/
+outreach-connect-dashboard/     ← monorepo local: F:/hermes-workspace/outreach-connect-dashboard/
 ├── apps/
-│   ├── api/               ← Express en VPS
+│   ├── api/                   ← Express API en VPS (PM2: outreach-api)
 │   │   ├── src/
 │   │   │   ├── index.ts
 │   │   │   ├── config.ts
 │   │   │   ├── middleware/auth.ts
-│   │   │   ├── routes/{qr,daemon,leads,stats,settings,health}.ts
+│   │   │   ├── routes/{qr,daemon,leads,stats,settings,health,webhook}.ts
 │   │   │   └── services/{baileys,daemon,db}.service.ts
-│   │   ├── ecosystem.config.js
-│   │   ├── nginx.conf
-│   │   └── deploy.sh
-│   └── web/               ← Next.js (Vercel)
+│   │   └── dist/              ← compiled output (VPS)
+│   └── web/                   ← Next.js (Vercel)
 │       ├── app/{page,connect,leads,stats,settings}
-│       ├── components/{Sidebar,QRDisplay,DaemonControl,LeadCard,StatsCard,StatusBadge}
+│       ├── components/{Sidebar,QRDisplay,DaemonControl,LeadCard,StatsCard,StatusBadge,LogTerminal}
+│       ├── contexts/WhatsAppContext.tsx
 │       └── lib/{api,types}.ts
 └── packages/shared/types.ts
+
+outreach-connect-daemon/        ← daemon repo en VPS: /home/hermes/workspace/projects/outreach-connect-daemon/
+├── daemon.js                   ← main loop + anti-ban
+├── baileys-relay.js            ← WhatsApp connection + forceReconnect
+├── outreach.js                 ← message templates + classifyReply
+├── state.js                    ← state persistence
+├── leads.js                    ← lead management
+├── notifier.js                 ← notifications
+└── ecosystem.config.js
 ```
 
 ---
 
-## 3. Endpoints API — Completos
+## 4. Endpoints API
 
 ### Base URL
 ```
-https://api.tudominio.com   (Nginx → VPS :3000)
+Vercel → /api/proxy/* → http://194.163.161.99:3000/api/*
 ```
 
 ### Auth
-Todos los endpoints requieren:
-```
-x-api-secret: <API_SECRET_ENV>
-```
+Todos requieren header: `x-api-secret: <API_SECRET>`
 
-### 3.1 QR
+### 4.1 QR
 
-| Método | Path | Respuesta |
+| Método | Path | Descripción |
 |---|---|---|
 | GET | `/api/qr/status` | `{ status, phone?, qr_available }` |
 | GET | `/api/qr/image` | PNG del QR o 404 |
-| POST | `/api/qr/start` | `{ ok: true, message: "..." }` |
-| POST | `/api/qr/disconnect` | `{ ok: true }` |
+| POST | `/api/qr/start` | Inicia generación de QR |
+| POST | `/api/qr/disconnect` | Cierra sesión WhatsApp |
+| POST | `/api/qr/regenerate` | Borra sesión, genera nuevo QR (via control.json) |
 
-### 3.2 Daemon
+### 4.2 Daemon
 
-| Método | Path | Respuesta |
+| Método | Path | Descripción |
 |---|---|---|
-| GET | `/api/daemon/status` | `{ running, pid?, uptime?, leads_processed_today, next_run?, last_run? }` |
-| POST | `/api/daemon/start` | `{ ok: true, pid? }` |
-| POST | `/api/daemon/stop` | `{ ok: true }` |
-| POST | `/api/daemon/restart` | `{ ok: true }` |
-| GET | `/api/daemon/logs?lines=50` | `{ logs: string[], timestamp }` |
+| GET | `/api/daemon/status` | `{ running, pid?, uptime?, leads_processed_today }` |
+| POST | `/api/daemon/start` | Inicia daemon |
+| POST | `/api/daemon/stop` | Detiene daemon |
+| POST | `/api/daemon/restart` | Reinicia daemon |
+| GET | `/api/daemon/logs?lines=50` | `{ logs: string[] }` |
 
-### 3.3 Leads
+### 4.3 Leads
 
-| Método | Path | Respuesta |
+| Método | Path | Descripción |
 |---|---|---|
 | GET | `/api/leads?status=&city=&page=&limit=` | `{ leads, total, page }` |
-| GET | `/api/leads/:id` | Lead completo + historial |
-| POST | `/api/leads/:id/action` | `{ ok: true, lead, message_sent? }` |
+| GET | `/api/leads/:id` | Lead completo |
+| POST | `/api/leads/:id/action` | `{ ok, lead, message_sent? }` |
 | POST | `/api/leads/import` | `{ imported, skipped }` |
 
-### 3.4 Stats & Settings
+### 4.4 Stats & Settings
 
-| Método | Path | Respuesta |
+| Método | Path | Descripción |
 |---|---|---|
-| GET | `/api/stats` | `{ sent_today, sent_week, pending, hot_leads, response_rate, by_city, by_status }` |
+| GET | `/api/stats` | Stats desde Supabase |
 | GET | `/api/settings` | Settings |
-| PUT | `/api/settings` | Settings actualizado |
+| PUT | `/api/settings` | Actualizar settings |
 
 ---
 
-## 4. Servicios
-
-### 4.1 BaileysService
-
-**State machine:** `idle | waiting | scanned | connected | disconnected`
-
-- `init()` → si existe `creds.json` reconnect automático, sino idle
-- `startQRFlow()` → limpia sesión, genera QR, captura PNG
-- `reconnect()` → usa sesión guardada (sin QR), auto-reconecta en desconexión inesperada
-- `disconnect()` → logout + limpia archivos
-- `getStatus()` → `{ status, phone?, qr_available }`
-- `getQRPNGBuffer()` → `Buffer | null`
-- `sendMessage(phone, text)` → message ID
-
-### 4.2 DbService
-
-SQLite con better-sqlite3. Tablas:
-- `leads` — indexes en (status, city, phone)
-- `actions_history` — index en (lead_id)
-- `settings` — fila única (id=1)
-- `stats_daily` — UPSERT por fecha
-
-### 4.3 DaemonService
-
-Controla `daemon.js` via PM2 programmatic API.
-
----
-
-## 5. Flujo Auto-Reconexión
+## 5. Flujo de Auto-Reconexión WhatsApp
 
 ```
-VPS arranca (reboot / pm2 restart)
+[Dashboard] POST /qr/regenerate
     ↓
-BaileysService.init()
+[API] Escribe /home/hermes/data/baileys-connect/control.json → { "action": "reconnect" }
     ↓
-¿Existe /data/auth-session/creds.json?
-    ├─ SÍ → reconnect() sin QR → status='connected'
-    └─ NO → status='idle' → esperar POST /api/qr/start
+[Daemon] checkControl() detecta el file, llama baileysRelay.forceReconnect()
+    ↓
+[Baileys Relay] Borra session-* files, update status → 'reconnecting'
+    ↓
+[Baileys Relay] sock.end(), sock = null
+    ↓
+[Daemon] Reconnect con nuevo QR
 ```
 
-Una vez vinculado, el daemon puede enviar mensajes sin intervención por semanas/meses.
+**Control File:** `/home/hermes/data/baileys-connect/control.json`
 
 ---
 
-## 6. Estado de Implementación
-
-| Phase | Task | Status |
-|---|---|---|
-| 1 | Express skeleton + auth + health | ✅ |
-| 1 | BaileysService singleton | ✅ |
-| 1 | Routes /api/qr/* | ✅ |
-| 1 | PM2 ecosystem + deploy.sh | ✅ |
-| 1 | Nginx config | ✅ |
-| 1 | Next.js scaffold | ✅ |
-| 1 | /connect page con polling | ✅ |
-| 2 | Routes /api/daemon/* | ✅ |
-| 2 | / Dashboard + daemon control | ✅ |
-| 2 | /leads table + filtros | ✅ |
-| 3 | /api/stats + /stats page | ✅ |
-| 3 | /api/settings + /settings page | ✅ |
-| 3 | /leads/[id] detail | ✅ |
-
-**TypeScript:** `tsc --noEmit` pasa en `apps/api` y `apps/web`.
-
----
-
-## 7. Instrucciones de Implementación para Hermes (VPS)
-
-### Paso 0 — Verificar prerrequisitos en VPS
-
-```bash
-node --version        # >= 18
-npm --version
-pm2 --version
-nginx -v
-```
-
-### Paso 1 — Subir proyecto al VPS
-
-Desde tu **terminal local**:
-
-```bash
-# Copiar carpeta api al VPS
-scp -r F:/Baileysconnect/apps/api user@194.163.161.99:/home/hermes/workspace/wolfim-api
-
-# O si usas Git:
-# En VPS: git clone <repo> && cd wolfim-api/apps/api
-```
-
-### Paso 2 — Instalar dependencias
-
-```bash
-cd /home/hermes/workspace/wolfim-api/apps/api
-
-# Instalar sin compilar módulos nativos (evita errores de build)
-npm install --ignore-scripts
-
-# Si falla better-sqlite3, instalar单独:
-npm install better-sqlite3 --ignore-scripts
-```
-
-### Paso 3 — Configurar variables de entorno
-
-```bash
-cd /home/hermes/workspace/wolfim-api/apps/api
-cp .env.example .env
-nano .env
-```
-
-**Valores requeridos:**
-
-```env
-PORT=3000
-API_SECRET=<generar con: openssl rand -hex 32>
-AUTH_SESSION_PATH=/data/auth-session
-DB_PATH=/data/wolfim.db
-DAEMON_SCRIPT=/home/hermes/workspace/autonomous-daemon/daemon.js
-ALLOWED_ORIGIN=https://tu-app.vercel.app
-NODE_ENV=production
-```
-
-### Paso 4 — Compilar TypeScript
-
-```bash
-npm run build
-```
-
-Si falla, verificar Node version: `node --version` (necesita >= 18).
-
-### Paso 5 — Crear directorios de datos
-
-```bash
-mkdir -p /data/auth-session
-mkdir -p /data
-chmod 755 /data
-chmod 755 /data/auth-session
-```
-
-### Paso 6 — Iniciar con PM2
-
-```bash
-cd /home/hermes/workspace/wolfim-api/apps/api
-
-# Iniciar
-pm2 start ecosystem.config.js
-
-# Verificar estado
-pm2 status
-
-# Ver logs
-pm2 logs wolfim-api --lines 50
-
-# Guardar para sobrevivir reboot
-pm2 save
-
-# Verificar que responde
-curl http://localhost:3000/health
-# → {"ok":true,"version":"1.0.0","uptime":...}
-```
-
-### Paso 7 — Nginx + SSL
-
-```bash
-# Copiar config
-sudo cp /home/hermes/workspace/wolfim-api/apps/api/nginx.conf /etc/nginx/sites-available/wolfim-api
-
-# Habilitar sitio
-sudo ln -s /etc/nginx/sites-available/wolfim-api /etc/nginx/sites-enabled/
-
-# Editar config: cambiar api.tudominio.com por tu dominio real
-sudo nano /etc/nginx/sites-available/wolfim-api
-
-# Testear y recargar
-sudo nginx -t
-sudo systemctl reload nginx
-```
-
-**Si tienes dominio con Certbot:**
-```bash
-sudo certbot --nginx -d api.tudominio.com
-sudo systemctl reload nginx
-```
-
-**Si NO tienes dominio (solo IP para testing):**
-Editar `/etc/nginx/sites-available/wolfim-api`:
-```nginx
-server_name 194.163.161.99;
-```
-Y usar `http://194.163.161.99` en vez de dominio.
-
-### Paso 8 — Verificar todos los endpoints
-
-Desde **terminal local**:
-
-```bash
-# Health
-curl http://localhost:3000/health
-
-# QR status (debe estar idle)
-curl -H "x-api-secret: TU_API_SECRET" http://localhost:3000/api/qr/status
-
-# Iniciar generación de QR
-curl -X POST -H "x-api-secret: TU_API_SECRET" http://localhost:3000/api/qr/start
-
-# Ver QR como imagen
-curl -H "x-api-secret: TU_API_SECRET" http://localhost:3000/api/qr/image -o qr.png
-
-# Daemon status
-curl -H "x-api-secret: TU_API_SECRET" http://localhost:3000/api/daemon/status
-
-# Stats
-curl -H "x-api-secret: TU_API_SECRET" http://localhost:3000/api/stats
-
-# Settings
-curl -H "x-api-secret: TU_API_SECRET" http://localhost:3000/api/settings
-
-# Leads vacíos (primera vez)
-curl -H "x-api-secret: TU_API_SECRET" "http://localhost:3000/api/leads?limit=5"
-```
-
-### Paso 9 — Deploy Vercel (Web)
-
-```bash
-cd F:/Baileysconnect/apps/web
-
-# Instalar
-npm install
-
-# Configurar env
-cp .env.local.example .env.local
-nano .env.local
-# NEXT_PUBLIC_VPS_API_URL=https://api.tudominio.com
-# API_SECRET=<mismo-secret-del-vps>
-
-# Deploy
-vercel --prod
-```
-
-O configurar en Dashboard de Vercel:
-- `NEXT_PUBLIC_VPS_API_URL` = `https://api.tudominio.com` (o tu IP)
-- `API_SECRET` = `<mismo-del-vps>`
-- `NEXTAUTH_SECRET` = `<generar-random-largo>`
-- `NEXTAUTH_URL` = `https://tu-app.vercel.app`
-
----
-
-## 8. Problemas Comunes y Soluciones
-
-### better-sqlite3 falla en compilación
-
-```bash
-# Usar --ignore-scripts
-npm install --ignore-scripts
-
-# O usar sql.js como alternativa (cambiar package.json)
-```
-
-### PM2 no inicia
-
-```bash
-# Ver logs completos
-pm2 logs wolfim-api --err --lines 100
-
-# Ver si puerto 3000 está ocupado
-lsof -i :3000
-
-# Reiniciar
-pm2 restart wolfim-api
-```
-
-### Nginx 502 Bad Gateway
-
-```bash
-# Verificar que Express corre
-pm2 status
-curl http://localhost:3000/health
-
-# Si está caído, reiniciar
-pm2 restart wolfim-api
-
-# Ver errores nginx
-sudo tail -20 /var/log/nginx/error.log
-```
-
-### QR no se genera
-
-```bash
-# Ver logs de Baileys
-pm2 logs wolfim-api --out --lines 100
-
-# Verificar que /data/auth-session es writable
-ls -la /data/auth-session
-
-# Limpiar sesión manual y reintentar
-rm -rf /data/auth-session/*
-curl -X POST -H "x-api-secret: <secret>" http://localhost:3000/api/qr/start
-```
-
-### Daemon no inicia
-
-```bash
-# Verificar que existe
-ls -la /home/hermes/workspace/autonomous-daemon/daemon.js
-
-# Ver logs
-pm2 logs wolfim-daemon --lines 50
-
-# Iniciar manualmente para ver errores
-node /home/hermes/workspace/autonomous-daemon/daemon.js
-```
-
----
-
-## 9. Comandos Rápidos de Referencia
+## 6. Comandos Rápidos
 
 ```bash
 # === VPS ===
-pm2 restart wolfim-api          # Reiniciar API
-pm2 logs wolfim-api --lines 100 # Ver logs API
-pm2 logs wolfim-daemon --lines 50 # Ver logs daemon
-pm2 status                      # Estado general
-pm2 stop all                    # Detener todo
-sudo systemctl reload nginx     # Recargar nginx tras cambio config
-sudo certbot renew              # Renovar SSL
+pm2 restart outreach-api           # Reiniciar API
+pm2 restart outreach-daemon       # Reiniciar daemon
+pm2 logs outreach-daemon --lines 50  # Ver logs daemon
+pm2 status                        # Estado de PM2
 
-# === Testing local ===
-curl http://localhost:3000/health
-curl -X POST -H "x-api-secret: <secret>" http://localhost:3000/api/qr/start
-curl -H "x-api-secret: <secret>" http://localhost:3000/api/qr/image -o qr.png
-curl -H "x-api-secret: <secret>" http://localhost:3000/api/leads?limit=5
-curl -H "x-api-secret: <secret>" http://localhost:3000/api/stats
+# === Local → VPS ===
+ssh root@194.163.161.99
 
-# === Desde local hacia VPS ===
-scp -r F:/Baileysconnect/apps/api user@194.163.161.99:/home/hermes/workspace/wolfim-api
-ssh user@194.163.161.99
+# === Testing ===
+curl -H "x-api-secret: <SECRET>" http://localhost:3000/api/qr/status
+curl -H "x-api-secret: <SECRET>" http://localhost:3000/api/stats
+curl -H "x-api-secret: <SECRET>" http://localhost:3000/api/leads?limit=5
 ```
 
 ---
 
-## 10. Checklist Final de Verificación
+## 7. Variables de Entorno
 
+### VPS (PM2 ecosystem o .env)
 ```
-□ Node >= 18 instalado en VPS
-□ Proyecto copiado a /home/hermes/workspace/wolfim-api
-□ npm install --ignore-scripts completado
-□ .env configurado con API_SECRET válido
-□ /data/auth-session y /data creados con permisos
-□ npm run build exitoso (sin errores TS)
-□ pm2 start ecosystem.config.js → status online
-□ curl http://localhost:3000/health → {"ok":true,...}
-□ Nginx configurado y corriendo
-□ SSL certbot configurado (si hay dominio)
-□ curl http://api.tudominio.com/health → funciona
-□ Vercel deployado y funcionando
-□ /connect page scanea QR y conecta WhatsApp
-□ Daemon start/stop funciona desde dashboard
-□ Leads se pueden importar y filtrar
-□ Settings se guardan correctamente
+API_SECRET=30038fa230438403eeb24caa3c2670d1f62eeb36fcc80f82f7da4eca6b2c9d45
+SUPABASE_URL=https://mrrieeeilameejhvbccu.supabase.co
+SUPABASE_SERVICE_KEY=<key>
+PORT=3000
+```
+
+### Vercel
+```
+NEXT_PUBLIC_VPS_API_URL=http://194.163.161.99:3000
+API_SECRET=30038fa230438403eeb24caa3c2670d1f62eeb36fcc80f7da4eca6b2c9d45
 ```
 
 ---
 
-*Proyecto: Baileysconnect · Stack: Baileys + Express + Next.js + PM2 + Nginx + SQLite · VPS: 194.163.161.99*
+*Wolfim · Anti-ban: 20msg/día · 15-45s delay · Ramp-up · 8AM-5PM Argentina · No fines de semana*
