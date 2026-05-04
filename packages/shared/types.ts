@@ -66,6 +66,7 @@ export interface Stats {
   conversion_rate: number
   by_city: { city: string; count: number }[]
   by_status: { status: string; count: number }[]
+  by_vertical?: { vertical: string; count: number }[]
 }
 
 export interface Settings {

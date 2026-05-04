@@ -10,6 +10,7 @@ export default function LeadsPage() {
   const [page, setPage] = useState(1)
   const [statusFilter, setStatusFilter] = useState('')
   const [cityFilter, setCityFilter] = useState('')
+  const [verticalFilter, setVerticalFilter] = useState('')
   const [loading, setLoading] = useState(false)
 
   const fetchLeads = async () => {
@@ -18,6 +19,7 @@ export default function LeadsPage() {
       const params = new URLSearchParams({ page: String(page), limit: '20' })
       if (statusFilter) params.set('status', statusFilter)
       if (cityFilter) params.set('city', cityFilter)
+      if (verticalFilter) params.set('vertical', verticalFilter)
       const data = await fetch(`/api/proxy/leads?${params}`).then(r => r.json())
       setLeads(data.leads)
       setTotal(data.total)
@@ -25,7 +27,7 @@ export default function LeadsPage() {
     finally { setLoading(false) }
   }
 
-  useEffect(() => { fetchLeads() }, [page, statusFilter, cityFilter])
+  useEffect(() => { fetchLeads() }, [page, statusFilter, cityFilter, verticalFilter])
 
   const handleAction = async (leadId: string, action: string) => {
     try {
@@ -45,19 +47,45 @@ export default function LeadsPage() {
         <div className="text-sm text-zinc-500">{total} total</div>
       </div>
 
-      <div className="flex gap-4 mb-6">
+      <div className="flex gap-4 mb-6 flex-wrap">
+        <div className="flex gap-1 bg-zinc-900 border border-zinc-800 rounded-lg p-1">
+          <button
+            onClick={() => { setVerticalFilter(''); setPage(1) }}
+            className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              verticalFilter === '' ? 'bg-green-500 text-zinc-950' : 'text-zinc-400 hover:text-zinc-200'
+            }`}
+          >
+            Todas
+          </button>
+          <button
+            onClick={() => { setVerticalFilter('inmobiliarias'); setPage(1) }}
+            className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              verticalFilter === 'inmobiliarias' ? 'bg-green-500 text-zinc-950' : 'text-zinc-400 hover:text-zinc-200'
+            }`}
+          >
+            Inmobiliarias
+          </button>
+          <button
+            onClick={() => { setVerticalFilter('concesionarias'); setPage(1) }}
+            className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              verticalFilter === 'concesionarias' ? 'bg-green-500 text-zinc-950' : 'text-zinc-400 hover:text-zinc-200'
+            }`}
+          >
+            Concesionarias
+          </button>
+        </div>
+
         <select
           value={statusFilter}
           onChange={e => { setStatusFilter(e.target.value); setPage(1) }}
           className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-300"
         >
           <option value="">Todos los estados</option>
-          <option value="new">Nuevo</option>
-          <option value="contacted">Contactado</option>
-          <option value="followup_1">Seguimiento 1</option>
-          <option value="followup_2">Seguimiento 2</option>
-          <option value="hot">Hot</option>
-          <option value="discarded">Descartado</option>
+          <option value="pending">Pendiente</option>
+          <option value="outreach_sent">Enviado</option>
+          <option value="replied">Respondido</option>
+          <option value="qualified">Hot</option>
+          <option value="rejected">Descartado</option>
         </select>
 
         <input

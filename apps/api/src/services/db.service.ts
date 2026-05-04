@@ -254,7 +254,18 @@ class DbService {
       const v = row.vertical || 'inmobiliarias'
       verticalCounts[v] = (verticalCounts[v] || 0) + 1
     }
-    const by_city = Object.entries(verticalCounts).map(([city, count]) => ({ city, count }))
+    const by_vertical = Object.entries(verticalCounts).map(([vertical, count]) => ({ vertical, count }))
+
+    const { data: byCiudadData } = await client
+      .from('leads')
+      .select('ciudad')
+
+    const ciudadCounts: Record<string, number> = {}
+    for (const row of byCiudadData || []) {
+      const c = row.ciudad || 'Desconocida'
+      ciudadCounts[c] = (ciudadCounts[c] || 0) + 1
+    }
+    const by_city = Object.entries(ciudadCounts).map(([city, count]) => ({ city, count }))
 
     const sentToday = outreachSent || 0
     const responseRate = outreachSent ? Math.round(((replied || 0) / outreachSent) * 100) : 0
@@ -267,7 +278,8 @@ class DbService {
       response_rate: responseRate,
       conversion_rate: responseRate,
       by_city,
-      by_status
+      by_status,
+      by_vertical
     }
   }
 

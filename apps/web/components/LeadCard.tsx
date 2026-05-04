@@ -32,6 +32,7 @@ export function LeadCard({ lead, onAction }: LeadCardProps) {
           <h4 className="font-medium text-zinc-100 truncate">{lead.nombre}</h4>
           <p className="text-sm text-zinc-400">{formatPhone(lead.telefono)}</p>
           <div className="flex items-center gap-2 mt-1">
+            <span className="text-xs px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400">{lead.vertical}</span>
             <span className="text-xs text-zinc-500">{lead.ciudad}{lead.zona ? ` · ${lead.zona}` : ''}</span>
             <span className="text-xs px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-500">{lead.fuente}</span>
           </div>

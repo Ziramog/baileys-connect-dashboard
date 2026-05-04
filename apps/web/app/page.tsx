@@ -89,6 +89,20 @@ export default function DashboardPage() {
           )}
         </div>
       </div>
+
+      {stats?.by_vertical && stats.by_vertical.length > 0 && (
+        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 mt-6">
+          <h2 className="font-medium mb-4">Por vertical</h2>
+          <div className="space-y-2">
+            {stats.by_vertical.map(v => (
+              <div key={v.vertical} className="flex justify-between items-center">
+                <span className="capitalize text-zinc-300">{v.vertical}</span>
+                <span className="text-zinc-400">{v.count} leads</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
