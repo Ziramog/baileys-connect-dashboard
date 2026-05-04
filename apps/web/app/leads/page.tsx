@@ -66,9 +66,9 @@ export default function LeadsPage() {
             Inmobiliarias
           </button>
           <button
-            onClick={() => { setVerticalFilter('concesionarias'); setPage(1) }}
+            onClick={() => { setVerticalFilter('concesionarias_autos'); setPage(1) }}
             className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-              verticalFilter === 'concesionarias' ? 'bg-green-500 text-zinc-950' : 'text-zinc-400 hover:text-zinc-200'
+              verticalFilter === 'concesionarias_autos' ? 'bg-green-500 text-zinc-950' : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
             Concesionarias
