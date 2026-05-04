@@ -1,7 +1,7 @@
 # Wolfim — Arquitectura y Guía de Implementación
 
 > WhatsApp Outreach Node · Baileys + Express + Next.js · VPS Contabo 194.163.161.99
-> Actualizado: 2026-05-01
+> Actualizado: 2026-05-04
 
 ---
 
@@ -63,17 +63,34 @@ Tracking: `state.json` → `last_message_at` para calcular horas offline.
 - Fuera de horario: log `[Business Hours] Outside schedule — skipping outreach`
 
 ### Mensajes Más Naturaless
--Máx 3-4 líneas
+- Máx 3-4 líneas
 - Sin asteriscos ni mayúsculas excesivas
 - Emojis mínimos
 - Greeting variado (¡Hola! / Buenas tardes / Hola / Buenas)
-- Templates en `outreach.js`:
+- Templates en `outreach.js` (separados por vertical):
 
 ```javascript
-intro_es: "Buenas tardes, soy Juan. Trabajo creando web para inmobiliarias que attract clientes sin depender solo de Instagram. ¿Te interesa saber más?"
-followup_1: "¡Hola! Te escribí hace unos días sobre crear una web para tu inmobiliaria. ¿Tuviste tiempo de verlo?"
-followup_2: "Hola de nuevo. Solo quería confirmar si les interesa recibir más info sobre generar consultas desde su propia web."
+// Vertical: inmobiliarias
+TEMPLATES.inmobiliarias = {
+  intro: "Buenas tardes, soy Juan. Trabajo creando web para inmobiliarias que attract clientes sin depender solo de Instagram. ¿Te interesa saber más?",
+  followup_1: "¡Hola! Te escribí hace unos días sobre crear una web para tu inmobiliaria. ¿Tuviste tiempo de verlo?",
+  followup_2: "Hola de nuevo. Solo quería confirmar si les interesa recibir más info sobre generar consultas desde su propia web."
+}
+
+// Vertical: concesionarias
+TEMPLATES.concesionarias = {
+  intro: "Buenas tardes, soy Juan. Help consecionarias de autos conseguir más consultas desde su web sin depender solo de portales. ¿Te interesa saber más?",
+  followup_1: "¡Hola! Te escribí hace unos días sobre crear una web para tu consecionaria. ¿Tuviste tiempo de verlo?",
+  followup_2: "Hola de nuevo. Solo quería confirmar si les interesa recibir más info sobre generar consultas web."
+}
 ```
+
+### Verticales Soportadas
+- **inmobiliarias** — desarrollo web para inmobiliarias
+- **concesionarias** — desarrollo web para consecionarias de autos
+- Campo `vertical` en tabla `leads` de Supabase
+- Dashboard filtra y muestra stats por vertical
+- Daemon selecciona template según `lead.vertical`
 
 ---
 
