@@ -57,7 +57,7 @@ export default function SettingsPage() {
   }
 
   const removeCity = (city: string) => {
-    setSettings((s: Settings) => ({ ...s, cities: s.cities.filter(c => c !== city) }))
+    setSettings((s: Settings) => ({ ...s, cities: s.cities.filter((c: string) => c !== city) }))
   }
 
   const toggleDay = (day: number) => {
@@ -146,8 +146,8 @@ export default function SettingsPage() {
             >
               <option value="">Seleccionar ciudad...</option>
               {availableCities
-                .filter(c => !settings.cities.includes(c.city))
-                .map(c => (
+                .filter((c: { city: string; count: number }) => !settings.cities.includes(c.city))
+                .map((c: { city: string; count: number }) => (
                   <option key={c.city} value={c.city}>{c.city} ({c.count} leads)</option>
                 ))}
             </select>
@@ -160,7 +160,7 @@ export default function SettingsPage() {
             </button>
           </div>
           <div className="flex flex-wrap gap-2">
-            {settings.cities.map(city => (
+            {settings.cities.map((city: string) => (
               <span key={city} className="inline-flex items-center gap-1 px-3 py-1 bg-zinc-800 rounded-full text-sm">
                 {city}
                 <button onClick={() => removeCity(city)} className="text-zinc-500 hover:text-zinc-300">×</button>

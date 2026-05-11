@@ -38,8 +38,8 @@ export default function StatsPage() {
             <p className="text-zinc-500 text-sm">Sin datos</p>
           ) : (
             <div className="space-y-3">
-              {stats.by_city.map(c => {
-                const max = Math.max(...stats.by_city.map(x => x.count))
+              {stats.by_city.map((c: { city: string; count: number }) => {
+                const max = Math.max(...stats.by_city.map((x: { count: number }) => x.count))
                 return (
                   <div key={c.city}>
                     <div className="flex justify-between text-sm mb-1">
@@ -65,8 +65,8 @@ export default function StatsPage() {
             <p className="text-zinc-500 text-sm">Sin datos</p>
           ) : (
             <div className="space-y-3">
-              {stats.by_status.map(s => {
-                const total = stats.by_status.reduce((acc, x) => acc + x.count, 0)
+              {stats.by_status.map((s: { status: string; count: number }) => {
+                const total = stats.by_status.reduce((acc: number, x: { count: number }) => acc + x.count, 0)
                 const pct = total > 0 ? Math.round((s.count / total) * 100) : 0
                 return (
                   <div key={s.status}>

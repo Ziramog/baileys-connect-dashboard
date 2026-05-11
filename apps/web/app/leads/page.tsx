@@ -107,7 +107,7 @@ export default function LeadsPage() {
           className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-300"
         >
           <option value="">Todas las ciudades</option>
-          {cities.map(c => (
+          {cities.map((c: { city: string; count: number }) => (
             <option key={c.city} value={c.city}>{c.city} ({c.count})</option>
           ))}
         </select>
@@ -122,8 +122,8 @@ export default function LeadsPage() {
       ) : (
         <>
           <div className="grid gap-4 md:grid-cols-2">
-            {leads.map(lead => (
-              <LeadCard key={lead.id} lead={lead} onAction={action => handleAction(lead.id, action)} />
+            {leads.map((lead: Lead) => (
+              <LeadCard key={lead.id} lead={lead} onAction={(action: string) => handleAction(lead.id, action)} />
             ))}
           </div>
 

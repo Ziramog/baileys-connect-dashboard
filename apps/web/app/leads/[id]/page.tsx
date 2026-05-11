@@ -82,7 +82,7 @@ export default function LeadDetailPage() {
         </div>
 
         <div className="flex gap-2 flex-wrap">
-          {actions.map(a => (
+          {actions.map((a: { key: string; label: string; color: string }) => (
             <button
               key={a.key}
               onClick={() => handleAction(a.key)}
