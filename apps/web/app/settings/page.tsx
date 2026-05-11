@@ -51,13 +51,13 @@ export default function SettingsPage() {
 
   const addCity = () => {
     if (citySelect && !settings.cities.includes(citySelect)) {
-      setSettings(s => ({ ...s, cities: [...s.cities, citySelect] }))
+      setSettings((s: Settings) => ({ ...s, cities: [...s.cities, citySelect] }))
       setCitySelect('')
     }
   }
 
   const removeCity = (city: string) => {
-    setSettings(s => ({ ...s, cities: s.cities.filter(c => c !== city) }))
+    setSettings((s: Settings) => ({ ...s, cities: s.cities.filter(c => c !== city) }))
   }
 
   const toggleDay = (day: number) => {
