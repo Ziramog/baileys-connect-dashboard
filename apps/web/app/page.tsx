@@ -77,7 +77,7 @@ export default function DashboardPage() {
         <div className="text-zinc-500 text-sm">
           {stats?.by_status?.length ? (
             <div className="space-y-2">
-              {stats.by_status.map(s => (
+              {stats.by_status.map((s: { status: string; count: number }) => (
                 <div key={s.status} className="flex justify-between items-center">
                   <span className="capitalize">{s.status.replace('_', ' ')}</span>
                   <span className="text-zinc-400">{s.count}</span>
@@ -94,7 +94,7 @@ export default function DashboardPage() {
         <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 mt-6">
           <h2 className="font-medium mb-4">Por vertical</h2>
           <div className="space-y-2">
-            {stats.by_vertical.map(v => (
+            {stats.by_vertical.map((v: { vertical: string; count: number }) => (
               <div key={v.vertical} className="flex justify-between items-center">
                 <span className="capitalize text-zinc-300">{v.vertical}</span>
                 <span className="text-zinc-400">{v.count} leads</span>
