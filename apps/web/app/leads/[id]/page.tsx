@@ -100,7 +100,7 @@ export default function LeadDetailPage() {
           <p className="text-zinc-500 text-sm">Sin acciones</p>
         ) : (
           <div className="relative pl-4 border-l-2 border-zinc-800 space-y-4">
-            {lead.actions_history.map((action, i) => (
+            {lead.actions_history.map((action: { action: string; timestamp: string; message_sent?: string }, i: number) => (
               <div key={i} className="relative">
                 <div className="absolute -left-[21px] w-3 h-3 rounded-full bg-zinc-700" />
                 <div>
