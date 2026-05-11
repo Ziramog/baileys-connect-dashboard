@@ -59,11 +59,12 @@ export function QRDisplay({ onConnected }: QRDisplayProps) {
     }
   }
 
-  const regenerateQR = async () => {
+  const resetAll = async () => {
+    if (!confirm('¿Reiniciar todo? Esto cerrará WhatsApp y generará un nuevo QR. ¿Continuar?')) return
     setLoading(true)
     setError('')
     try {
-      const res = await fetch('/api/proxy/qr/regenerate', { method: 'POST' }).then(r => r.json())
+      const res = await fetch('/api/proxy/qr/reset', { method: 'POST' }).then(r => r.json())
       if (res.error) throw new Error(res.error)
       await ctx.refresh()
     } catch (err: any) {
@@ -100,11 +101,11 @@ export function QRDisplay({ onConnected }: QRDisplayProps) {
               Desconectar
             </button>
             <button
-              onClick={regenerateQR}
+              onClick={resetAll}
               disabled={loading}
-              className="px-4 py-2 bg-zinc-800 text-zinc-300 rounded-lg hover:bg-zinc-700 transition-colors disabled:opacity-50"
+              className="px-4 py-2 bg-orange-500/20 text-orange-400 rounded-lg hover:bg-orange-500/30 transition-colors disabled:opacity-50"
             >
-              Regenerar QR
+              Reiniciar Todo
             </button>
           </div>
         </div>
@@ -128,11 +129,11 @@ export function QRDisplay({ onConnected }: QRDisplayProps) {
                 <span className="text-zinc-400">{statusMessages.waiting}</span>
               </div>
               <button
-                onClick={regenerateQR}
+                onClick={resetAll}
                 disabled={loading}
-                className="px-4 py-2 bg-zinc-800 text-zinc-400 rounded-lg hover:bg-zinc-700 transition-colors disabled:opacity-50 text-sm"
+                className="px-4 py-2 bg-orange-500/20 text-orange-400 rounded-lg hover:bg-orange-500/30 transition-colors disabled:opacity-50 text-sm"
               >
-                Generar nuevo QR
+                Reiniciar Todo
               </button>
             </div>
           )}

@@ -11,16 +11,26 @@ const defaultSettings: Settings = {
   daily_limit: 100
 }
 
+interface Stats {
+  by_city: { city: string; count: number }[]
+}
+
 export default function SettingsPage() {
   const [settings, setSettings] = useState<Settings>(defaultSettings)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
-  const [cityInput, setCityInput] = useState('')
+  const [citySelect, setCitySelect] = useState('')
+  const [availableCities, setAvailableCities] = useState<{ city: string; count: number }[]>([])
 
   useEffect(() => {
     fetch('/api/proxy/settings')
       .then(r => r.json())
       .then(data => { if (Object.keys(data).length) setSettings(data) })
+      .catch(() => {})
+
+    fetch('/api/proxy/stats')
+      .then(r => r.json())
+      .then((data: Stats) => setAvailableCities(data.by_city || []))
       .catch(() => {})
   }, [])
 
@@ -40,9 +50,9 @@ export default function SettingsPage() {
   }
 
   const addCity = () => {
-    if (cityInput.trim() && !settings.cities.includes(cityInput.trim())) {
-      setSettings(s => ({ ...s, cities: [...s.cities, cityInput.trim()] }))
-      setCityInput('')
+    if (citySelect && !settings.cities.includes(citySelect)) {
+      setSettings(s => ({ ...s, cities: [...s.cities, citySelect] }))
+      setCitySelect('')
     }
   }
 
@@ -129,15 +139,25 @@ export default function SettingsPage() {
         <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
           <h2 className="font-medium mb-4">Ciudades</h2>
           <div className="flex gap-2 mb-4">
-            <input
-              type="text"
-              value={cityInput}
-              onChange={e => setCityInput(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && addCity()}
-              placeholder="Agregar ciudad"
-              className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2"
-            />
-            <button onClick={addCity} className="px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg">+</button>
+            <select
+              value={citySelect}
+              onChange={e => setCitySelect(e.target.value)}
+              className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-300"
+            >
+              <option value="">Seleccionar ciudad...</option>
+              {availableCities
+                .filter(c => !settings.cities.includes(c.city))
+                .map(c => (
+                  <option key={c.city} value={c.city}>{c.city} ({c.count} leads)</option>
+                ))}
+            </select>
+            <button
+              onClick={addCity}
+              disabled={!citySelect}
+              className="px-4 py-2 bg-green-500/20 text-green-400 border border-green-500/50 rounded-lg hover:bg-green-500/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              +
+            </button>
           </div>
           <div className="flex flex-wrap gap-2">
             {settings.cities.map(city => (
@@ -146,6 +166,9 @@ export default function SettingsPage() {
                 <button onClick={() => removeCity(city)} className="text-zinc-500 hover:text-zinc-300">×</button>
               </span>
             ))}
+            {settings.cities.length === 0 && (
+              <span className="text-zinc-600 text-sm">Sin ciudades seleccionadas</span>
+            )}
           </div>
         </div>
 

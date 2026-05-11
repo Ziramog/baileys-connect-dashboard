@@ -4,6 +4,10 @@ import { useEffect, useState } from 'react'
 import type { Lead } from '@/lib/types'
 import { LeadCard } from '@/components/LeadCard'
 
+interface Stats {
+  by_city: { city: string; count: number }[]
+}
+
 export default function LeadsPage() {
   const [leads, setLeads] = useState<Lead[]>([])
   const [total, setTotal] = useState(0)
@@ -12,6 +16,14 @@ export default function LeadsPage() {
   const [cityFilter, setCityFilter] = useState('')
   const [verticalFilter, setVerticalFilter] = useState('')
   const [loading, setLoading] = useState(false)
+  const [cities, setCities] = useState<{ city: string; count: number }[]>([])
+
+  const fetchStats = async () => {
+    try {
+      const data = await fetch('/api/proxy/stats').then(r => r.json()) as Stats
+      setCities(data.by_city || [])
+    } catch {}
+  }
 
   const fetchLeads = async () => {
     setLoading(true)
@@ -27,6 +39,7 @@ export default function LeadsPage() {
     finally { setLoading(false) }
   }
 
+  useEffect(() => { fetchStats() }, [])
   useEffect(() => { fetchLeads() }, [page, statusFilter, cityFilter, verticalFilter])
 
   const handleAction = async (leadId: string, action: string) => {
@@ -88,13 +101,16 @@ export default function LeadsPage() {
           <option value="rejected">Descartado</option>
         </select>
 
-        <input
-          type="text"
-          placeholder="Ciudad"
+        <select
           value={cityFilter}
           onChange={e => { setCityFilter(e.target.value); setPage(1) }}
-          className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-300 placeholder-zinc-600"
-        />
+          className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-300"
+        >
+          <option value="">Todas las ciudades</option>
+          {cities.map(c => (
+            <option key={c.city} value={c.city}>{c.city} ({c.count})</option>
+          ))}
+        </select>
       </div>
 
       {loading ? (
