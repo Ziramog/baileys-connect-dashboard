@@ -13,6 +13,7 @@ export default function LeadsPage() {
   const [verticalFilter, setVerticalFilter] = useState('')
   const [loading, setLoading] = useState(false)
   const [cities, setCities] = useState<string[]>([])
+  const [verticals, setVerticals] = useState<{ vertical: string; count: number }[]>([])
 
   const fetchLeads = async () => {
     setLoading(true)
@@ -29,10 +30,13 @@ export default function LeadsPage() {
   }
 
   useEffect(() => {
-    fetch('/api/proxy/leads/cities')
-      .then(r => r.json())
-      .then(data => setCities(data.cities || []))
-      .catch(() => {})
+    Promise.all([
+      fetch('/api/proxy/leads/cities').then(r => r.json()),
+      fetch('/api/proxy/leads/verticals').then(r => r.json())
+    ]).then(([cityData, verticalData]) => {
+      setCities(cityData.cities || [])
+      setVerticals(verticalData.verticals || [])
+    }).catch(() => {})
   }, [])
 
   useEffect(() => { fetchLeads() }, [page, statusFilter, cityFilter, verticalFilter])
@@ -55,33 +59,19 @@ export default function LeadsPage() {
         <div className="text-sm text-zinc-500">{total} total</div>
       </div>
 
-      <div className="flex gap-4 mb-6 flex-wrap">
-        <div className="flex gap-1 bg-zinc-900 border border-zinc-800 rounded-lg p-1">
-          <button
-            onClick={() => { setVerticalFilter(''); setPage(1) }}
-            className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-              verticalFilter === '' ? 'bg-green-500 text-zinc-950' : 'text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            Todas
-          </button>
-          <button
-            onClick={() => { setVerticalFilter('inmobiliarias'); setPage(1) }}
-            className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-              verticalFilter === 'inmobiliarias' ? 'bg-green-500 text-zinc-950' : 'text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            Inmobiliarias
-          </button>
-          <button
-            onClick={() => { setVerticalFilter('concesionarias_autos'); setPage(1) }}
-            className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-              verticalFilter === 'concesionarias_autos' ? 'bg-green-500 text-zinc-950' : 'text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            Concesionarias
-          </button>
-        </div>
+      <div className="flex gap-4 mb-6 flex-wrap items-center">
+        <select
+          value={verticalFilter}
+          onChange={e => { setVerticalFilter(e.target.value); setPage(1) }}
+          className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-300"
+        >
+          <option value="">Todas ({total})</option>
+          {verticals.map(v => (
+            <option key={v.vertical} value={v.vertical}>
+              {v.vertical} ({v.count})
+            </option>
+          ))}
+        </select>
 
         <select
           value={statusFilter}

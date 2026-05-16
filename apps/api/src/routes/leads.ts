@@ -85,6 +85,15 @@ leadsRouter.get('/cities', async (req: Request, res: Response) => {
   }
 })
 
+leadsRouter.get('/verticals', async (req: Request, res: Response) => {
+  try {
+    const verticals = await dbService.getDistinctVerticals()
+    res.json({ verticals })
+  } catch (err: any) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
 leadsRouter.post('/import', async (req: Request, res: Response) => {
   try {
     const { leads } = req.body as { leads: RawLead[] }

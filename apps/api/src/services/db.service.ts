@@ -295,6 +295,22 @@ class DbService {
     return cities
   }
 
+  async getDistinctVerticals(): Promise<{ vertical: string; count: number }[]> {
+    const { data, error } = await this.getClient()
+      .from('leads')
+      .select('vertical')
+
+    if (error) throw error
+    const counts: Record<string, number> = {}
+    for (const row of data || []) {
+      const v = row.vertical || 'inmobiliarias'
+      counts[v] = (counts[v] || 0) + 1
+    }
+    return Object.entries(counts)
+      .map(([vertical, count]) => ({ vertical, count }))
+      .sort((a, b) => b.count - a.count)
+  }
+
   // Settings are still kept in SQLite for simplicity
   // (not critical for the lead machine)
   getSettings() {
