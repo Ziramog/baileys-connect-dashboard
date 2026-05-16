@@ -283,6 +283,18 @@ class DbService {
     }
   }
 
+  async getDistinctCities(): Promise<string[]> {
+    const { data, error } = await this.getClient()
+      .from('leads')
+      .select('ciudad')
+      .not('ciudad', 'is', null)
+      .not('ciudad', 'eq', '')
+
+    if (error) throw error
+    const cities = [...new Set((data || []).map((r: any) => r.ciudad).filter(Boolean))].sort()
+    return cities
+  }
+
   // Settings are still kept in SQLite for simplicity
   // (not critical for the lead machine)
   getSettings() {

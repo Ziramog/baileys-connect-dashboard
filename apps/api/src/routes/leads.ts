@@ -76,6 +76,15 @@ leadsRouter.post('/:id/action', async (req: Request, res: Response) => {
   }
 })
 
+leadsRouter.get('/cities', async (req: Request, res: Response) => {
+  try {
+    const cities = await dbService.getDistinctCities()
+    res.json({ cities })
+  } catch (err: any) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
 leadsRouter.post('/import', async (req: Request, res: Response) => {
   try {
     const { leads } = req.body as { leads: RawLead[] }

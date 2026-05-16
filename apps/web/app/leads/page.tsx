@@ -12,6 +12,7 @@ export default function LeadsPage() {
   const [cityFilter, setCityFilter] = useState('')
   const [verticalFilter, setVerticalFilter] = useState('')
   const [loading, setLoading] = useState(false)
+  const [cities, setCities] = useState<string[]>([])
 
   const fetchLeads = async () => {
     setLoading(true)
@@ -26,6 +27,13 @@ export default function LeadsPage() {
     } catch {}
     finally { setLoading(false) }
   }
+
+  useEffect(() => {
+    fetch('/api/proxy/leads/cities')
+      .then(r => r.json())
+      .then(data => setCities(data.cities || []))
+      .catch(() => {})
+  }, [])
 
   useEffect(() => { fetchLeads() }, [page, statusFilter, cityFilter, verticalFilter])
 
@@ -88,13 +96,16 @@ export default function LeadsPage() {
           <option value="rejected">Descartado</option>
         </select>
 
-        <input
-          type="text"
-          placeholder="Ciudad"
+        <select
           value={cityFilter}
           onChange={e => { setCityFilter(e.target.value); setPage(1) }}
-          className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-300 placeholder-zinc-600"
-        />
+          className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-300"
+        >
+          <option value="">Todas las ciudades</option>
+          {cities.map(city => (
+            <option key={city} value={city}>{city}</option>
+          ))}
+        </select>
       </div>
 
       {loading ? (
