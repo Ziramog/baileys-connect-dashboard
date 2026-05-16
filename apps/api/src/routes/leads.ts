@@ -21,6 +21,24 @@ leadsRouter.get('/', async (req: Request, res: Response) => {
   }
 })
 
+leadsRouter.get('/cities', async (req: Request, res: Response) => {
+  try {
+    const cities = await dbService.getDistinctCities()
+    res.json({ cities })
+  } catch (err: any) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+leadsRouter.get('/verticals', async (req: Request, res: Response) => {
+  try {
+    const verticals = await dbService.getDistinctVerticals()
+    res.json({ verticals })
+  } catch (err: any) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
 leadsRouter.get('/:id', async (req: Request, res: Response) => {
   try {
     const lead = await dbService.getLeadById(req.params.id)
@@ -71,24 +89,6 @@ leadsRouter.post('/:id/action', async (req: Request, res: Response) => {
     const updated = await dbService.getLeadById(req.params.id)
 
     res.json({ ok: true, lead: updated, message_sent: messageSent })
-  } catch (err: any) {
-    res.status(500).json({ error: err.message })
-  }
-})
-
-leadsRouter.get('/cities', async (req: Request, res: Response) => {
-  try {
-    const cities = await dbService.getDistinctCities()
-    res.json({ cities })
-  } catch (err: any) {
-    res.status(500).json({ error: err.message })
-  }
-})
-
-leadsRouter.get('/verticals', async (req: Request, res: Response) => {
-  try {
-    const verticals = await dbService.getDistinctVerticals()
-    res.json({ verticals })
   } catch (err: any) {
     res.status(500).json({ error: err.message })
   }

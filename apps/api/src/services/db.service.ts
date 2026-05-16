@@ -299,6 +299,8 @@ class DbService {
     const { data, error } = await this.getClient()
       .from('leads')
       .select('vertical')
+      .not('vertical', 'is', null)
+      .not('vertical', 'eq', '')
 
     if (error) throw error
     const counts: Record<string, number> = {}
